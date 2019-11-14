@@ -1,0 +1,1077 @@
+----#######################################################
+---- BUFFER
+--library IEEE;
+--use IEEE.STD_LOGIC_1164.ALL;
+--
+--entity BUFFER_INOUT is
+--    Port ( p1 : in  STD_LOGIC;
+--           IN_SIG : in  STD_LOGIC_VECTOR (79 downto 0);
+--			  DATA1 : out  STD_LOGIC_VECTOR (31 downto 0);
+--			  DATA2 : out  STD_LOGIC_VECTOR (31 downto 0));
+--           
+--end BUFFER_INOUT;
+--
+--architecture Behavioral of BUFFER_INOUT is
+--
+--begin
+--process (P1,IN_SIG) is
+----variable temp : STD_LOGIC_VECTOR (63 downto 0):=(others =>'0');
+--begin
+----if rising_edge(CLK2) then
+----if CLR1='1' then
+----	OUT_SIG <=(others =>'1');
+--if rising_edge(P1)  then
+----	OUT_SIG <=IN_SIG;
+--	
+--	DATA1(3 downto 0) <=IN_SIG(3 downto 0);
+--	DATA1(7 downto 4) <=IN_SIG(8 downto 5);
+--	DATA1(11 downto 8) <=IN_SIG(13 downto 10);
+--	DATA1(15 downto 12) <=IN_SIG(18 downto 15);
+--	DATA1(19 downto 16) <=IN_SIG(23 downto 20);
+--	DATA1(23 downto 20) <=IN_SIG(28 downto 25);
+--	DATA1(27 downto 24) <=IN_SIG(33 downto 30);
+--	DATA1(31 downto 28) <=IN_SIG(38 downto 35);
+--	
+--	DATA2(3 downto 0) <=IN_SIG(43 downto 40);
+--	DATA2(7 downto 4) <=IN_SIG(48 downto 45);
+--	DATA2(11 downto 8) <=IN_SIG(53 downto 50);
+--	DATA2(15 downto 12) <=IN_SIG(58 downto 55);
+--	DATA2(19 downto 16) <=IN_SIG(63 downto 60);
+--	DATA2(23 downto 20) <=IN_SIG(68 downto 65);
+--	DATA2(27 downto 24) <=IN_SIG(73 downto 70);
+--	DATA2(31 downto 28) <=IN_SIG(78 downto 75);
+--	
+----	temp  :=IN_SIG;
+--end if;
+----end if;
+--end process;
+--end Behavioral;
+--#######################################################
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_ARITH.ALL;
+use IEEE.numeric_std.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+
+entity FLPOINT is
+    Port ( START : in  STD_LOGIC;
+           ADDSUB : in  STD_LOGIC;
+			  CLR : in  STD_LOGIC;
+			  NUM1 : in  STD_LOGIC_VECTOR (31 downto 0);
+           NUM2 : in  STD_LOGIC_VECTOR (31 downto 0);
+			  MZERO : out  STD_LOGIC;
+			  PZERO : out  STD_LOGIC;
+			  PINF : out  STD_LOGIC;
+			  MINF : out  STD_LOGIC;
+			  NAN : out  STD_LOGIC;
+--			  OVFL : out  STD_LOGIC;
+--			  CLR_out : out  STD_LOGIC;
+           ANSWER : out  STD_LOGIC_VECTOR (31 downto 0));
+end FLPOINT;
+
+architecture Behavioral of FLPOINT is
+
+--signal EXP2_s : std_logic_vector (7 downto 0);
+--signal count_shift_s1 : std_logic_vector (7 downto 0);
+----signal count_shift_s2 : std_logic_vector (7 downto 0);
+--signal signf2_s1 : std_logic_vector (23 downto 0);
+--signal signf1_s1 : std_logic_vector (23 downto 0);
+--signal Sum_temp_s : std_logic_vector (24 downto 0);
+--signal DIFF_s : std_logic_vector (7 downto 0);
+
+begin
+PROCESS (start,CLR,num1,num2,ADDSUB) is
+variable count_shift1 : std_logic_vector (7 downto 0);
+variable count_shift2 : std_logic_vector (7 downto 0);
+variable EXP : std_logic_vector (7 downto 0);
+variable EXP1 : std_logic_vector (7 downto 0);
+variable EXP2 : std_logic_vector (7 downto 0);
+variable DIFF : std_logic_vector (7 downto 0);
+variable Signf : std_logic_vector (23 downto 0);
+variable Signf1 : std_logic_vector (23 downto 0);
+variable signf2 : std_logic_vector (23 downto 0);
+variable Signf_temp : std_logic_vector (23 downto 0);
+variable Sum_temp : std_logic_vector (24 downto 0);
+variable sign1 : std_logic;
+variable sign2 : std_logic;
+variable sign_temp : std_logic;
+variable signt : std_logic;
+variable ANSWER_V : STD_LOGIC_VECTOR (31 downto 0);
+variable numb1_V : STD_LOGIC_VECTOR (31 downto 0);
+variable numb2_V : STD_LOGIC_VECTOR (31 downto 0);
+variable OVFL_V : std_logic;
+
+
+begin
+numb1_V :=num1;
+numb2_V :=num2;
+--wait until rising_edge(start);
+if CLR ='1' then
+	ANSWER <=(others =>'0');
+	MZERO <='0';
+	PZERO <='0';
+	PINF <='0';
+	MINF <='0';
+	NAN <='0';
+--	OVFL <='0';
+--	CLR_out <='1';
+elsif rising_edge(start) then
+--	CLR_out <='0';
+	MZERO <='0';
+	PZERO <='0';
+	PINF <='0';
+	MINF <='0';
+	NAN <='0';
+--	OVFL_V :='0';
+--	OVFL <='0';
+	if (numb1_V ="01111111100000000000000000000000" or numb2_V ="01111111100000000000000000000000") then
+		PINF <='1';
+		ANSWER <=(others =>'0');
+	elsif (numb1_V ="11111111100000000000000000000000" or numb2_V ="11111111100000000000000000000000") then
+		MINF <='1';
+		ANSWER <=(others =>'0');
+	elsif (numb1_V ="01111111100000100000000000000000" or numb1_V ="11111111100100010001001010101010" or numb2_V ="01111111100000100000000000000000" OR numb2_V ="11111111100100010001001010101010") then
+		NAN <='1';
+		ANSWER <=(others =>'0');
+	else
+
+sign1 :=NUM1(31);
+if ADDSUB ='0' then
+	sign2 :=NUM2(31);
+else
+	sign2 := not NUM2(31);
+end if;
+EXP1 :=NUM1(30 downto 23);
+EXP2 :=NUM2(30 downto 23);
+
+
+-- CHECK FOR HIDDEN BIT
+if EXP1 ="00000000" then 
+	Signf1 := '0' & NUM1(22 downto 0);
+else
+	Signf1 := '1' & NUM1(22 downto 0);
+end if;
+
+if EXP2 ="00000000" then 
+	Signf2 := '0' & NUM2(22 downto 0);
+else
+	Signf2 := '1' & NUM2(22 downto 0);
+end if;
+
+-- CHECK FOR EXP2 > EXP1
+if EXP2 > EXP1 then
+	Signf_temp :=Signf1;
+	Signf1 :=Signf2;
+	Signf2 :=Signf_temp;
+	sign_temp :=sign1;
+	sign1 :=sign2;
+	sign2 :=sign_temp;
+	EXP1 :=NUM2(30 downto 23);
+	EXP2 :=NUM1(30 downto 23);
+end if;
+
+-- Determine THE DIFFERENCE
+DIFF := EXP1 - EXP2;
+--btoinconv(DIFF,DIFINT);
+count_shift1 :="00000000";
+if DIFF > "00000000" then
+--	DIFINT := DIFINT - 1;
+	
+		
+	for i in 0 to 23 loop
+		if DIFF > "00000000" then
+			Signf2 :='0' & Signf2 (23 downto 1);
+			count_shift1 :=count_shift1+1;
+			DIFF :=DIFF-1;
+		else
+			exit;
+		end if;
+	  end loop;
+		EXP2 :=EXP2+ count_shift1;
+end if;
+--EXP2 :=EXP1;
+--EXP2_S <=EXP2; --##########################
+--count_shift_s1 <=count_shift1;--################################3
+--Signf2_S1 <=Signf2; --######################
+--Signf1_S1 <=Signf1; --######################
+--DIFF_s <=DIFF;
+-- Check the sign bit
+if sign1=sign2 then --add
+		signt := sign1;
+		Sum_temp := ('0' & Signf1) + ('0' & Signf2);
+		if Sum_temp(24) ='1' then
+			EXP :=EXP1+1;
+			Signf := Sum_temp(24 downto 1);
+		else
+			Signf := Sum_temp(23 downto 0);
+		end if;
+--SUBSTRACT
+	
+
+elsif Signf1 = Signf2 then
+	Signf :="000000000000000000000000";
+	exp :="00000000";
+	signt := '0';
+else
+		if Signf1 > Signf2 then
+			signt := sign1;
+		else
+			signt := sign2;
+		end if;
+		Signf_temp :=Signf2;
+		Signf_temp := (not Signf_temp) +1;
+		Sum_temp := ('0' & Signf1) + ('0' & Signf_temp );
+		
+
+--		if Signf1 < Signf2 then
+--			signt := sign2;
+--			Signf_temp :=Signf1;
+--			Sum_temp := '0' & (not Signf_temp) +1;
+--		   Sum_temp := Sum_temp + ('0' & Signf2);
+--		elsif Signf2 < Signf1 then
+--			signt := sign1;
+--			Signf_temp :=Signf2;
+--			Sum_temp := '0' & (not Signf_temp) +1;
+--		   Sum_temp := ('0' & Signf1) + Sum_temp;
+--		else
+--			signt := '0';
+--			Signf_temp :=Signf1;
+--			Sum_temp := '0' & (not Signf_temp) +1;
+--		   Sum_temp := Sum_temp + ('0' & Signf2);
+--		end if;
+--		Sum_temp_s <= Sum_temp;--#############################################3
+		Signf_temp := Sum_temp(23 downto 0);
+		count_shift2 :="00000000";
+		if Sum_temp(24) ='1' then --CARRY OUT
+		
+			for i in 0 to 23 loop
+				if Signf_temp(23) ='1' then
+					exit;
+				else
+					Signf_temp := Signf_temp(22 downto 0) & '0';
+					count_shift2 :=count_shift2+1;
+				end if;
+				
+			end loop;
+				if Signf_temp ="000000000000000000000000" then
+					Signf :="000000000000000000000000";
+					EXP :="00000000";
+				else
+					EXP := EXP1 - count_shift2;
+					Signf :=Signf_temp;
+				end if;
+			elsif Sum_temp(24) ='0' and (Signf1 ="000000000000000000000000" or Signf2 ="000000000000000000000000") then
+				EXP := EXP1;
+				Signf :=Signf_temp;
+			else
+--		elsif Signf_temp(23) ='0' and Sum_temp(24) ='0' then
+			EXP := EXP1;
+			Signf :=(not Signf_temp) +1;
+		end if;
+end if;
+
+--if Signf1 ="000000000000000000000000" and EXP1=EXP2  then
+--		Signf1 :=Signf2;
+--		signt := sign2;
+--		EXP :=EXP1;
+--elsif Signf2 ="000000000000000000000000" and EXP1=EXP2 then
+--		Signf1 :=Signf1;
+--		signt := sign1;
+--		EXP :=EXP1;
+--elsif Signf1 =Signf1 and EXP1=EXP2 then
+--		Signf1 :="000000000000000000000000";
+--		signt := sign1;
+--		EXP :=EXP1;
+--end if;
+
+ANSWER_V(31) := signt;
+ANSWER_V(30 downto 23) := EXP;
+ANSWER_V(22 downto 0) := Signf(22 downto 0);
+
+-- ZERO CHECKING
+if ANSWER_V ="00000000000000000000000000000000" then
+	PZERO <='1';
+else
+	PZERO <='0';
+end if;
+
+-- MINUS ZERO CHECKING
+if ANSWER_V ="10000000000000000000000000000000" then
+	MZERO <='1';
+else
+	MZERO <='0';
+end if;
+
+-- + INF CHECKING
+if ANSWER_V ="01111111100000000000000000000000" then
+	PINF <='1';
+else
+	PINF <='0';
+end if;
+
+-- - INF CHECKING
+if ANSWER_V ="11111111100000000000000000000000" then
+	MINF <='1';
+else
+	MINF <='0';
+end if;
+
+-- NAN CHECKING
+if ANSWER_V ="01111111100000100000000000000000" OR ANSWER_V ="11111111100100010001001010101010" then
+	NAN <='1';
+else
+	NAN <='0';
+end if;
+
+
+ANSWER <=ANSWER_V;
+end if;
+end if;
+end process;
+
+end Behavioral;
+
+
+
+
+----#######################################################
+--
+--
+--library IEEE;
+--use IEEE.STD_LOGIC_1164.ALL;
+--
+--entity PADD_ZERO is
+--    Port ( DATA_INPUT : in  STD_LOGIC_VECTOR (31 downto 0);
+--				PLZERO : in  STD_LOGIC;
+--				MIZERO : in  STD_LOGIC;
+--				PLINF : in  STD_LOGIC;
+--				MIINF : in  STD_LOGIC;
+--				NTNAN : in  STD_LOGIC;
+--				CLR4 : in  STD_LOGIC;
+----				Overflw : in  STD_LOGIC;
+--           DATA_OUT : out  STD_LOGIC_VECTOR (39 downto 0));
+--end PADD_ZERO;
+--
+--architecture Behavioral of PADD_ZERO is
+--
+--begin
+--process (CLR4,DATA_INPUT,PLZERO,MIZERO,PLINF,MIINF,NTNAN) is
+--begin
+--if CLR4 ='1'  then
+--	DATA_OUT <=(others =>'1');
+--elsif PLZERO='1' then
+--	DATA_OUT(4 downto 0) <= "00000";
+--	DATA_OUT(39 downto 5) <= (others => '1');
+--elsif MIZERO ='1' then
+--	DATA_OUT(4 downto 0) <= "00000"; -- (0)
+--	DATA_OUT(9 downto 5) <= "10000"; -- (-)
+--	DATA_OUT(39 downto 10) <= (others => '1');
+--elsif PLINF ='1' then
+--	DATA_OUT(4 downto 0) <= "01111"; -- (f)
+--	DATA_OUT(9 downto 5) <= "10001"; -- (n)
+--	DATA_OUT(14 downto 10) <="10010";-- (i)
+--	DATA_OUT(39 downto 15) <= (others => '1');
+--elsif MIINF ='1' then
+--	DATA_OUT(4 downto 0) <= "01111"; -- (f)
+--	DATA_OUT(9 downto 5) <= "10001"; -- (n)
+--	DATA_OUT(14 downto 10) <="10010";-- (i)
+--	DATA_OUT(19 downto 15) <="10000";-- (-)
+--	DATA_OUT(39 downto 20) <= (others => '1');
+--elsif NTNAN ='1' then
+--	DATA_OUT(4 downto 0) <= "10001"; -- (n)
+--	DATA_OUT(9 downto 5) <= "01010"; -- (A)
+--	DATA_OUT(14 downto 10) <="10001";-- (n)
+--	DATA_OUT(39 downto 15) <= (others => '1');
+----elsif Overflw ='1' then
+----	DATA_OUT(4 downto 0) <= "10011"; -- (L)
+----	DATA_OUT(9 downto 5) <= "01111"; -- (F)
+----	DATA_OUT(14 downto 10) <="10100";-- (U)
+----	DATA_OUT(19 downto 15) <="00000";-- (0)
+----	DATA_OUT(39 downto 20) <= (others => '1');
+--else
+--	DATA_OUT(4 downto 0) <= '0' & DATA_INPUT(3 downto 0);
+--	DATA_OUT(9 downto 5) <= '0' & DATA_INPUT(7 downto 4);
+--	DATA_OUT(14 downto 10) <= '0' & DATA_INPUT(11 downto 8);
+--	DATA_OUT(19 downto 15) <= '0' & DATA_INPUT(15 downto 12);
+--	DATA_OUT(24 downto 20) <= '0' & DATA_INPUT(19 downto 16);
+--	DATA_OUT(29 downto 25) <= '0' & DATA_INPUT(23 downto 20);
+--	DATA_OUT(34 downto 30) <= '0' & DATA_INPUT(27 downto 24);
+--	DATA_OUT(39 downto 35) <= '0' & DATA_INPUT(31 downto 28);
+--end if;
+--end process;
+--
+--end Behavioral;
+--
+--
+--
+--
+--
+----#######################################################
+--
+--
+--library IEEE;
+--use IEEE.STD_LOGIC_1164.ALL;
+--use IEEE.STD_LOGIC_ARITH.ALL;
+--use IEEE.numeric_std.ALL;
+--use IEEE.STD_LOGIC_UNSIGNED.ALL;
+--
+--
+--
+--entity MUX31 is
+--    Port ( clk,SEL1 : in  STD_LOGIC;
+--           SEL2 : in  STD_LOGIC;
+--           SEL3 : in  STD_LOGIC;
+--           N1 : in  STD_LOGIC_VECTOR (39 downto 0);
+--           N2 : in  STD_LOGIC_VECTOR (39 downto 0);
+--           N3 : in  STD_LOGIC_VECTOR (39 downto 0);
+--           N4 : out  STD_LOGIC_VECTOR (39 downto 0));
+--end MUX31;
+--
+--architecture Behavioral of MUX31 is
+--
+--begin
+--
+--process (clk,SEL1,SEL2,SEL3,N1,N2,N3) is
+--variable sel : std_logic_vector(2 downto 0);
+--begin
+--
+--sel := SEL3 & SEL2 & SEL1;
+--if rising_edge(clk) then
+--	if sel="001" then
+--		N4 <= N1;
+--	elsif sel="010" then
+--		N4 <= N2;
+--	elsif sel="100" then
+--		N4 <= N3;
+--	else
+--		N4 <=(others =>'1');
+--	end if;
+--end if;
+--		
+--
+--end process;
+--
+--end Behavioral;
+--
+--
+--
+----#######################################################
+--library IEEE;
+--use IEEE.STD_LOGIC_1164.ALL;
+--
+--entity MUX21 is
+--    Port ( INP_BUT : in  STD_LOGIC_VECTOR (39 downto 0);
+--           SELCT : in  STD_LOGIC;
+--           OUT_BIT : out  STD_LOGIC_VECTOR (19 downto 0));
+--end MUX21;
+--
+--architecture Behavioral of MUX21 is
+--
+--begin
+--process (SELCT,INP_BUT) is
+--begin
+--case SELCT is
+--	when '0' =>
+--		OUT_BIT <=INP_BUT(19 downto 0);
+--	when others =>
+--		OUT_BIT <=INP_BUT(39 downto 20);
+--	end case;
+--end process;
+--end Behavioral;
+--
+----#######################################################
+--library IEEE;
+--use IEEE.STD_LOGIC_1164.ALL; 
+--use IEEE.STD_LOGIC_ARITH.ALL;
+--use IEEE.STD_LOGIC_UNSIGNED.ALL;
+--
+--entity BCD_SEG is
+--    Port ( DATA_INP : in  STD_LOGIC_VECTOR (19 downto 0);
+--           CLK2 : in  STD_LOGIC;
+--           SEG  : out  STD_LOGIC_VECTOR (7 downto 0);
+--           AN1   : out  STD_LOGIC_VECTOR (3 downto 0));
+--end BCD_SEG;
+--
+--architecture Behavioral of BCD_SEG is
+--signal SEL : STD_LOGIC_VECTOR (1 downto 0):="00";
+--signal MUX_OUT : STD_LOGIC_VECTOR (4 downto 0);
+--signal INP1 : STD_LOGIC_VECTOR (4 downto 0);
+--signal INP2 : STD_LOGIC_VECTOR (4 downto 0);
+--signal INP3 : STD_LOGIC_VECTOR (4 downto 0);
+--signal INP4 : STD_LOGIC_VECTOR (4 downto 0);
+--
+--begin
+--INP4 <=DATA_INP(19 downto 15);
+--INP3 <=DATA_INP(14 downto 10);
+--INP2 <=DATA_INP(9 downto 5);
+--INP1 <=DATA_INP(4 downto 0);
+--
+---- TWO BIT COUNTER
+--PROCESS (CLK2) IS
+--variable temp : std_logic_vector ( 1 downto 0):="00";
+--BEGIN
+--	if rising_edge(CLK2) then 
+--		temp := temp + 1;
+--	end if;
+--SEL <=temp;
+--END PROCESS;
+---- 16 X 4 MUX
+--process (SEL,INP1,INP2,INP3,INP4) is
+--begin
+--	case SEL is
+--		when "00" =>
+--			MUX_OUT <=INP1;
+--		when "01" =>
+--			MUX_OUT <=INP2;
+--		when "10" =>
+--			MUX_OUT <=INP3;
+--		when others =>
+--			MUX_OUT <=INP4;
+--		end case;
+--END PROCESS;
+---- BCD to Seven segment
+--process (MUX_OUT) is
+--begin
+--  case MUX_OUT is
+--      when "00000"=> SEG <="00000011"; -- '0'
+--		when "00001"=> SEG <="10011111"; -- '1'
+--		when "00010"=> SEG <="00100101"; -- '2'
+--		when "00011"=> SEG <="00001101"; -- '3'
+--		when "00100"=> SEG <="10011001"; -- '4'
+--		when "00101"=> SEG <="01001001"; -- '5'
+--		when "00110"=> SEG <="01000001"; -- '6'
+--		when "00111"=> SEG <="00011111"; -- '7'
+--		when "01000"=> SEG <="00000001"; -- '8'
+--		when "01001"=> SEG <="00001001"; -- '9'
+--		when "01010"=> SEG <="00010001"; -- 'A'
+--		when "01011"=> SEG <="11000001"; -- 'B'
+--		when "01100"=> SEG <="01100011"; -- 'C'
+--		when "01101"=> SEG <="10000101"; -- 'D'
+--		when "01110"=> SEG <="01100001"; -- 'E'
+--		when "01111"=> SEG <="01110001"; -- 'F'
+--		when "10000"=> SEG <="11111101"; -- '-'
+--		when "10001"=> SEG <="11010101"; -- 'n'
+--		when "10010"=> SEG <="11110011"; -- 'i'
+--		when "10011"=> SEG <="11100011"; -- 'L'
+--		when "10100"=> SEG <="10000011"; -- 'U'
+--		when others=> SEG <="11111111"; -- ' '
+--	end case;
+--end process;
+---- 2 X 4 DECODER
+--process (SEL) is
+--begin
+--case SEL is
+--		when "00" =>
+--			AN1(0) <= '0';
+--			AN1(1) <= '1';
+--			AN1(2) <= '1';
+--			AN1(3) <= '1';
+--		when "01" =>
+--			AN1(0) <= '1';
+--			AN1(1) <= '0';
+--			AN1(2) <= '1';
+--			AN1(3) <= '1';
+--		when "10" =>
+--			AN1(0) <= '1';
+--			AN1(1) <= '1';
+--			AN1(2) <= '0';
+--			AN1(3) <= '1';
+--		when others =>
+--			AN1(0) <= '1';
+--			AN1(1) <= '1';
+--			AN1(2) <= '1';
+--			AN1(3) <= '0';
+--		end case;
+--END PROCESS;
+--end Behavioral;
+
+--#######################################################
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+USE IEEE.std_logic_Arith.ALL;
+USE IEEE.std_logic_unsigned.ALL;
+USE IEEE.numeric_std.ALL;
+entity STATE_MN is
+    Port ( RESET,CLK_SYS,SW0,BEG_CL : in  STD_LOGIC;
+           SW1 : in  STD_LOGIC;
+           SW2 : in  STD_LOGIC;
+           SW3 : in  STD_LOGIC;
+--			  SW4 : in STD_LOGIC;
+--			  SW5 : in STD_LOGIC;
+--			  SW6 : in STD_LOGIC;
+--			  SW7 : in STD_LOGIC;
+           UP_CNT : in  STD_LOGIC;
+           DO_CNT : in  STD_LOGIC;
+           SIG_IN : in  STD_LOGIC;
+			  MZERO_OUT : out STD_LOGIC;
+			  PZERO_OUT : out STD_LOGIC;
+			  PINF_OUT : out STD_LOGIC;
+			  MINF_OUT :out  STD_LOGIC;
+			  NAN_OUT : out STD_LOGIC;
+			  DATAOT1 : out  STD_LOGIC_VECTOR (31 downto 0);
+			  DATAOT2 : out  STD_LOGIC_VECTOR (31 downto 0);
+			  ANSWEROT : out  STD_LOGIC_VECTOR (31 downto 0);
+--			  SEV_SEG  : out  STD_LOGIC_VECTOR (7 downto 0);
+--           AN   : out  STD_LOGIC_VECTOR (3 downto 0);
+           LD1 : out  STD_LOGIC);
+--           LD2 : out  STD_LOGIC);
+end STATE_MN;
+
+architecture Behavioral of STATE_MN is
+type state_type is (S0,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16); 
+signal state_t: state_type:=s0;
+--signal fast_clk1 : STD_LOGIC;
+--signal clk_divider1 : std_logic_vector (2 downto 0) := (others => '0');
+signal fast_clk2 : STD_LOGIC;
+signal clk_divider2 : std_logic_vector (1 downto 0) := (others => '0');
+signal UP_CNTOUT : STD_LOGIC;
+signal DO_CNTOUT : STD_LOGIC;
+signal OUT_DATA : STD_LOGIC_VECTOR (79 downto 0);
+signal NUMBR1 : STD_LOGIC_VECTOR (31 downto 0);
+signal NUMBR2 : STD_LOGIC_VECTOR (31 downto 0);
+signal SIG_OUT : STD_LOGIC;
+signal SIGNF_OUT : STD_LOGIC;
+signal UPCTF_OUT : STD_LOGIC;
+signal DWNCTF_OUT : STD_LOGIC;
+--signal BUFFOUT : STD_LOGIC_VECTOR (79 downto 0);
+signal RES : STD_LOGIC_VECTOR (31 downto 0);
+--signal PADZRO : STD_LOGIC_VECTOR (39 downto 0);
+--signal SEL_SIG : STD_LOGIC_VECTOR (39 downto 0);
+--signal MX_SEG : STD_LOGIC_VECTOR (19 downto 0);
+signal MZERO_INOUT : STD_LOGIC;
+signal PZERO_INOUT : STD_LOGIC;
+signal PINF_INOUT : STD_LOGIC;
+signal MINF_INOUT : STD_LOGIC;
+signal NAN_INOUT : STD_LOGIC;
+--signal OVFL_OUT : STD_LOGIC;
+--signal CLR_INOUT : STD_LOGIC;
+
+-------------------------------------------------------------
+--component BUFFER_INOUT
+--Port ( p1 : in  STD_LOGIC;
+--           IN_SIG : in  STD_LOGIC_VECTOR (79 downto 0);
+--			  DATA1 : out  STD_LOGIC_VECTOR (31 downto 0);
+--			  DATA2 : out  STD_LOGIC_VECTOR (31 downto 0));
+--end component BUFFER_INOUT;
+-------------------------------------------------------------
+component FLPOINT
+ Port ( START : in  STD_LOGIC;
+           ADDSUB : in  STD_LOGIC;
+			  CLR : in  STD_LOGIC;
+			  NUM1 : in  STD_LOGIC_VECTOR (31 downto 0);
+           NUM2 : in  STD_LOGIC_VECTOR (31 downto 0);
+			  MZERO : out  STD_LOGIC;
+			  PZERO : out  STD_LOGIC;
+			  PINF : out  STD_LOGIC;
+			  MINF : out  STD_LOGIC;
+			  NAN : out  STD_LOGIC;
+--			  OVFL : out  STD_LOGIC;
+--			  CLR_out : out  STD_LOGIC;
+           ANSWER : out  STD_LOGIC_VECTOR (31 downto 0));
+end component FLPOINT;
+-------------------------------------------------------------
+--component PADD_ZERO
+--Port ( DATA_INPUT : in  STD_LOGIC_VECTOR (31 downto 0);
+--				PLZERO : in  STD_LOGIC;
+--				MIZERO : in  STD_LOGIC;
+--				PLINF : in  STD_LOGIC;
+--				MIINF : in  STD_LOGIC;
+--				NTNAN : in  STD_LOGIC;
+--				CLR4 : in  STD_LOGIC;
+----				Overflw : in  STD_LOGIC;
+--           DATA_OUT : out  STD_LOGIC_VECTOR (39 downto 0));
+--end component PADD_ZERO;
+---------------------------------------------------------------
+--component MUX31
+--Port ( clk,SEL1 : in  STD_LOGIC;
+--           SEL2 : in  STD_LOGIC;
+--           SEL3 : in  STD_LOGIC;
+--           N1 : in  STD_LOGIC_VECTOR (39 downto 0);
+--           N2 : in  STD_LOGIC_VECTOR (39 downto 0);
+--           N3 : in  STD_LOGIC_VECTOR (39 downto 0);
+--           N4 : out  STD_LOGIC_VECTOR (39 downto 0));
+--end component MUX31;
+---------------------------------------------------------------
+--component MUX21
+--Port ( INP_BUT : in  STD_LOGIC_VECTOR (39 downto 0);
+--           SELCT : in  STD_LOGIC;
+--           OUT_BIT : out  STD_LOGIC_VECTOR (19 downto 0));
+--end component MUX21;
+---------------------------------------------------------------
+--component BCD_SEG
+--Port ( DATA_INP : in  STD_LOGIC_VECTOR (19 downto 0);
+--           CLK2 : in  STD_LOGIC;
+--           SEG  : out  STD_LOGIC_VECTOR (7 downto 0);
+--           AN1   : out  STD_LOGIC_VECTOR (3 downto 0));
+--end component BCD_SEG;
+---------------------------------------------------------------
+begin
+----------------------------------------------------------
+----FRQUENCY DIVIDER 
+--CLK_SYS_division1 : process (CLK_SYS, clk_divider1)
+--begin
+--if (CLK_SYS = '1' and CLK_SYS'event) then
+--	clk_divider1 <= clk_divider1 + 1;
+--end if;
+--fast_clk1 <= clk_divider1(2);
+--end process;
+---- END FRQUENCY DIVIDER
+-----------------------------------------------------------
+--FRQUENCY DIVIDER 
+CLK_SYS_division2 : process (CLK_SYS, clk_divider2)
+begin
+if (CLK_SYS = '1' and CLK_SYS'event) then
+	clk_divider2 <= clk_divider2 + 1;
+end if;
+fast_clk2 <= clk_divider2(1);
+end process;
+-- END FRQUENCY DIVIDER
+---------------------------------------------------------
+-- REMOVE DEBOUNCING
+PROCESS (UP_CNT,fast_clk2) IS
+BEGIN
+if (fast_clk2 = '1' and fast_clk2'event) then
+			UP_CNTOUT <= UP_CNT;
+END IF;
+END PROCESS;
+----------------------------------------------------------
+-- REMOVE DEBOUNCING
+PROCESS (DO_CNT,fast_clk2) IS
+BEGIN
+if (fast_clk2 = '1' and fast_clk2'event) then
+			DO_CNTOUT <= DO_CNT;
+END IF;
+END PROCESS;
+---------------------------------------------------------
+---------------------------------------------------------
+-- PULSE GENERATOR
+PROCESS(fast_clk2,UP_CNTOUT)
+VARIABLE UPCTF_PAST: STD_LOGIC;
+BEGIN
+	If fast_clk2'event and fast_clk2 = '1' then
+		IF UPCTF_PAST= '0' AND UP_CNTOUT= '1' THEN
+			UPCTF_OUT<='1';
+			UPCTF_PAST:='1';
+		ELSIF UPCTF_PAST = '1' AND UP_CNTOUT='1' THEN
+			UPCTF_OUT<='0';
+			UPCTF_PAST:='1';
+		ELSIF UP_CNTOUT= '0' THEN
+			UPCTF_OUT<= '0';
+			UPCTF_PAST:='0';
+		END IF;
+	END IF;
+END PROCESS;
+---------------------------------------------------------
+
+---------------------------------------------------------
+-- PULSE GENERATOR
+PROCESS(fast_clk2,DO_CNTOUT)
+VARIABLE DWNCTF_PAST: STD_LOGIC;
+BEGIN
+	If fast_clk2'event and fast_clk2 = '1' then
+		IF DWNCTF_PAST= '0' AND DO_CNTOUT= '1' THEN
+			DWNCTF_OUT<='1';
+			DWNCTF_PAST:='1';
+		ELSIF DWNCTF_PAST = '1' AND DO_CNTOUT='1' THEN
+			DWNCTF_OUT<='0';
+			DWNCTF_PAST:='1';
+		ELSIF DO_CNTOUT= '0' THEN
+			DWNCTF_OUT<= '0';
+			DWNCTF_PAST:='0';
+		END IF;
+	END IF;
+END PROCESS;
+---------------------------------------------------------
+----------------------------------------------------------
+-- STATE MACHINE I/O INTERFACE
+process (RESET,fast_clk2,SW0,SW1,SW2,SW3,UPCTF_OUT,DWNCTF_OUT,state_t) is
+variable temp : STD_LOGIC_VECTOR (79 downto 0):=(others =>'0');
+variable cunt : integer range 0 to 85 :=0;
+begin
+if rising_edge(fast_clk2) THEN
+	if RESET ='1' then
+		state_t <= s0;
+		temp :=(others =>'0');
+		cunt :=0;
+	else
+		case state_t is
+		
+			when S0 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s1;
+--				elsif DWNCTF_OUT='1' then --and CUNT >=5
+--					temp(cunt-1 downto cunt-5) := "00000";
+--					CUNT :=CUNT-5;
+--					state_t <= s0;
+				END IF;
+				
+				when S1 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s2;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s0;
+				END IF;
+				
+				when S2 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s3;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s1;
+				END IF;
+				
+				when S3 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s4;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s2;
+				END IF;
+				
+				when S4 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s5;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s3;
+				END IF;
+				
+				when S5 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s6;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s4;
+				END IF;
+				
+				when S6 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s7;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s5;
+				END IF;
+				
+				when S7 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s8;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s6;
+				END IF;
+				
+				when S8 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s9;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s7;
+				END IF;
+				
+				when S9 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s10;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s8;
+				END IF;
+				
+				when S10 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s11;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s9;
+				END IF;
+				
+				when S11 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s12;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s10;
+				END IF;
+				
+				when S12 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s13;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s11;
+				END IF;
+				
+				when S13 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s14;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s12;
+				END IF;
+				
+				when S14 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s15;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s13;
+				END IF;
+				
+				when S15 =>
+				if UPCTF_OUT ='1' then
+					CUNT :=CUNT+5;
+					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+					state_t <= s16;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s14;
+				END IF;
+				
+--				when S16 =>
+--				if UPCTF_OUT ='1' then
+--					CUNT :=CUNT+5;
+--					temp(cunt-1 downto cunt-5) := '0' & SW3 & SW2& SW1 & SW0;
+--					state_t <= s17;
+--				elsif DWNCTF_OUT='1' then
+--					temp(cunt-1 downto cunt-5) := "00000";
+--					CUNT :=CUNT-5;
+--					state_t <= s15;
+--				END IF;
+				
+				when S16 =>
+				if UPCTF_OUT ='1' then
+					state_t <= s0;
+					temp :=(others =>'1');
+					cunt :=0;
+				elsif DWNCTF_OUT='1' then
+					temp(cunt-1 downto cunt-5) := "00000";
+					CUNT :=CUNT-5;
+					state_t <= s15;
+				END IF;
+				
+			end case;	
+	end if;
+end if;
+OUT_DATA <=temp;
+end process;	
+---------------------------------------------------------
+-- PULSE GENERATOR
+PROCESS(fast_clk2,SIG_IN)
+VARIABLE SIGNF_PAST: STD_LOGIC;
+BEGIN
+	If fast_clk2'event and fast_clk2 = '1' then
+		IF SIGNF_PAST= '0' AND SIG_IN= '1' THEN
+			SIGNF_OUT<='1';
+			SIGNF_PAST:='1';
+		ELSIF SIGNF_PAST = '1' AND SIG_IN='1' THEN
+			SIGNF_OUT<='0';
+			SIGNF_PAST:='1';
+		ELSIF SIG_IN= '0' THEN
+			SIGNF_OUT<= '0';
+			SIGNF_PAST:='0';
+		END IF;
+	END IF;
+END PROCESS;
+---------------------------------------------------------
+
+----------------------------------------
+-- ADDITION / SUBSTRACTION SIGNAL
+process (RESET,fast_clk2,SIGNF_OUT) is
+variable temp : std_logic:='0';
+begin
+if rising_edge(fast_clk2) then
+if RESET ='1' then
+	LD1 <='0';
+--	LD2 <='0';
+else
+	if SIGNF_OUT ='1' then
+		SIG_OUT <= temp;
+		LD1 <=temp;
+--		LD2 <= not temp;
+		temp :=not temp;
+	end if;
+END IF;
+end if;
+end process;
+----------------------------------------
+	NUMBR1(3 downto 0) <=OUT_DATA(3 downto 0);
+	NUMBR1(7 downto 4) <=OUT_DATA(8 downto 5);
+	NUMBR1(11 downto 8) <=OUT_DATA(13 downto 10);
+	NUMBR1(15 downto 12) <=OUT_DATA(18 downto 15);
+	NUMBR1(19 downto 16) <=OUT_DATA(23 downto 20);
+	NUMBR1(23 downto 20) <=OUT_DATA(28 downto 25);
+	NUMBR1(27 downto 24) <=OUT_DATA(33 downto 30);
+	NUMBR1(31 downto 28) <=OUT_DATA(38 downto 35);
+	
+	NUMBR2(3 downto 0) <=OUT_DATA(43 downto 40);
+	NUMBR2(7 downto 4) <=OUT_DATA(48 downto 45);
+	NUMBR2(11 downto 8) <=OUT_DATA(53 downto 50);
+	NUMBR2(15 downto 12) <=OUT_DATA(58 downto 55);
+	NUMBR2(19 downto 16) <=OUT_DATA(63 downto 60);
+	NUMBR2(23 downto 20) <=OUT_DATA(68 downto 65);
+	NUMBR2(27 downto 24) <=OUT_DATA(73 downto 70);
+	NUMBR2(31 downto 28) <=OUT_DATA(78 downto 75);
+--------------------------------------
+--COMP1 : BUFFER_INOUT port map(UPCTF_OUT,OUT_DATA,NUMBR1,NUMBR2);
+DATAOT1 <=NUMBR1;
+DATAOT2 <=NUMBR2;
+COMP2 : FLPOINT port map(BEG_CL,SIG_OUT,RESET,NUMBR1,NUMBR2,MZERO_INOUT,PZERO_INOUT,PINF_INOUT,MINF_INOUT,NAN_INOUT,RES);
+ANSWEROT <=RES;
+MZERO_OUT <=MZERO_INOUT;
+PZERO_OUT <=PZERO_INOUT;
+PINF_OUT <=PINF_INOUT;
+MINF_OUT <=MINF_INOUT;
+NAN_OUT <=NAN_INOUT;
+--COMP3 : PADD_ZERO port map(RES,PZERO_OUT,MZERO_OUT,PINF_OUT,MINF_OUT,NAN_OUT,CLR_INOUT,PADZRO);
+--COMP4 : MUX31 port map(fast_clk1,SW4,SW5,SW6,BUFFOUT(39 downto 0),BUFFOUT(79 downto 40),PADZRO,SEL_SIG);
+--COMP5 : MUX21 port map(SEL_SIG,SW7,MX_SEG);
+--COMP6 : BCD_SEG port map(MX_SEG,fast_clk1,SEV_SEG,AN);
+
+end Behavioral;
+
