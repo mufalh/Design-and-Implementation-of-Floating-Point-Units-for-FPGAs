@@ -1,0 +1,58 @@
+restart
+
+
+force START 0 @0 us
+force ADDSUB 0 @0 us
+force CLR 1 @0 us
+force CLR 0 @2 us
+force START 1 @5 us
+force num1  32'h7F800000 @ 3us
+force num2  32'h00000000 @ 3us
+
+run 10 us
+
+force START 0 @10 us
+force START 1 @15 us
+force num1  32'hFF9112AA 
+force num2  32'h00000000
+
+
+run 10 us
+
+force START 0 @20 us
+force START 1 @25 us
+force num1  32'h00000000 
+force num2  32'hFF800000 
+
+
+run 10 us
+
+
+force START 0 @30 us
+force START 1 @35 us
+force num1  32'h7F820000 
+force num2  32'h00000000
+
+run 10 us
+
+force START 0 @40 us
+force START 1 @45 us
+force num1 32'h011C0000 
+force num2  32'h811C0000
+
+run 10 us
+
+force START 0 @50 us
+force START 1 @55 us
+force num1 32'h00000000 
+force num2  32'h80000000
+
+run 10 us
+
+force START 0 @60 us
+force START 1 @65 us
+force num1 32'h00000200 
+force num2 32'h80E450B4
+
+run 10 us
+
